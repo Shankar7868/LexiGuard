@@ -90,49 +90,83 @@ function App() {
       const pdfText = await extractTextFromPDF(file);
       
       // Step 2: Send lightweight JSON to the proxy
-      setProgressText("Sending to AI Analysis Engine...");
-      
       const payload = {
         documentText: pdfText,
         Concerns: concern
       };
 
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload),
-      });
+      const MAX_RETRIES = 20;
+      let success = false;
+      let lastError = null;
+      let attempt = 1;
 
-      if (!response.ok) {
-        let errorMessage = "Failed to analyze the document. Please try again.";
+      while (attempt <= MAX_RETRIES && !success) {
         try {
-          const errorData = await response.json();
-          if (errorData.error) {
-            errorMessage = errorData.error;
-            if (errorData.details) {
-              console.error("Vercel Proxy Error Details:", errorData.details);
+          setProgressText(`Sending to AI Analysis Engine... (Attempt ${attempt}/${MAX_RETRIES})`);
+          
+          const response = await fetch("/api/analyze", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            let errorMessage = "Failed to analyze the document. Please try again.";
+            try {
+              const errorData = await response.json();
+              if (errorData.error) {
+                errorMessage = errorData.error;
+                if (errorData.details) {
+                  console.error(`Vercel Proxy Error Details (Attempt ${attempt}):`, errorData.details);
+                }
+              }
+            } catch (e) {
+              // ignore parsing error
             }
+            throw new Error(errorMessage);
           }
-        } catch (e) {
-          // ignore parsing error if it's not json
+
+          const text = await response.text();
+          let parsedSuccessfully = false;
+          try {
+            const json = JSON.parse(text);
+            let extractedText = null;
+            if (Array.isArray(json) && json.length > 0) {
+              extractedText = json[0].text || json[0].output || json[0].message;
+            } else if (typeof json === 'object' && json !== null) {
+              extractedText = json.text || json.output || json.message;
+            }
+            
+            // If the AI returned an empty response, throw error to trigger a retry
+            if (!extractedText && !text.trim()) {
+               throw new Error("AI engine returned an empty response.");
+            }
+
+            setResult(extractedText || JSON.stringify(json, null, 2));
+            parsedSuccessfully = true;
+          } catch (e: any) {
+            if (e.message === "AI engine returned an empty response.") throw e;
+            if (!text.trim()) throw new Error("AI engine returned an empty response.");
+            setResult(text);
+            parsedSuccessfully = true;
+          }
+          
+          success = true;
+        } catch (err: any) {
+          lastError = err;
+          console.error(`Attempt ${attempt} failed:`, err.message);
+          attempt++;
+          if (attempt <= MAX_RETRIES) {
+            setProgressText(`Retrying... (${attempt}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
         }
-        throw new Error(errorMessage);
       }
 
-      const text = await response.text();
-      try {
-        const json = JSON.parse(text);
-        let extractedText = null;
-        if (Array.isArray(json) && json.length > 0) {
-          extractedText = json[0].text || json[0].output || json[0].message;
-        } else if (typeof json === 'object' && json !== null) {
-          extractedText = json.text || json.output || json.message;
-        }
-        setResult(extractedText || JSON.stringify(json, null, 2));
-      } catch {
-        setResult(text);
+      if (!success && lastError) {
+        throw lastError;
       }
       
     } catch (err: any) {
