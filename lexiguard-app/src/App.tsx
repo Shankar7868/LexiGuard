@@ -105,7 +105,19 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to analyze the document. Please try again.");
+        let errorMessage = "Failed to analyze the document. Please try again.";
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+            if (errorData.details) {
+              console.error("Vercel Proxy Error Details:", errorData.details);
+            }
+          }
+        } catch (e) {
+          // ignore parsing error if it's not json
+        }
+        throw new Error(errorMessage);
       }
 
       const text = await response.text();

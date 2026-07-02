@@ -1,4 +1,5 @@
-// This is a Vercel Serverless Function to proxy requests to the EC2 n8n instance securely.
+import axios from 'axios';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -6,35 +7,44 @@ export default async function handler(req, res) {
 
   try {
     const N8N_WEBHOOK_URL = 'http://13.53.216.50:5678/webhook/LexiGuard';
-
-    // The React app now sends JSON ({ documentText, Concerns })
-    // Vercel automatically parses JSON bodies into req.body
     const payload = req.body;
 
-    const fetchResponse = await fetch(N8N_WEBHOOK_URL, {
-      method: 'POST',
+    const axiosResponse = await axios.post(N8N_WEBHOOK_URL, payload, {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      timeout: 30000 // 30 seconds timeout
     });
 
-    if (!fetchResponse.ok) {
-      console.error(`n8n webhook error: ${fetchResponse.status} ${fetchResponse.statusText}`);
-      return res.status(fetchResponse.status).json({ error: 'Failed to process document.' });
+    return res.status(200).json(axiosResponse.data);
+    
+  } catch (error) {
+    console.error('API Proxy Error:', error.message);
+    
+    let statusCode = 500;
+    let errorMessage = 'Internal server error while connecting to the analysis engine.';
+    let rawError = error.message;
+
+    if (error.response) {
+      // The request was made and the server responded with a status code outside of 2xx
+      statusCode = error.response.status;
+      errorMessage = 'Analysis engine returned an error.';
+      rawError = JSON.stringify(error.response.data);
+    } else if (error.request) {
+      // The request was made but no response was received (e.g., connection refused, timeout)
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        errorMessage = 'Connection to the analysis engine timed out (Vercel timeout limit).';
+      } else if (error.message.includes('ECONNREFUSED')) {
+        errorMessage = 'Connection refused. The AWS EC2 instance is unreachable from Vercel (Check AWS Security Groups).';
+      } else {
+        errorMessage = 'Failed to connect to the analysis engine. The AWS EC2 instance may be offline or blocking Vercel IP addresses.';
+      }
     }
 
-    const contentType = fetchResponse.headers.get('content-type');
-    
-    if (contentType && contentType.includes('application/json')) {
-      const data = await fetchResponse.json();
-      return res.status(200).json(data);
-    } else {
-      const text = await fetchResponse.text();
-      return res.status(200).send(text);
-    }
-  } catch (error) {
-    console.error('API Proxy Error:', error);
-    return res.status(500).json({ error: 'Internal server error while connecting to the analysis engine.' });
+    return res.status(statusCode).json({ 
+      error: errorMessage,
+      details: rawError,
+      code: error.code
+    });
   }
 }
