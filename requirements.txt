@@ -1,0 +1,36 @@
+# LexiGuard System Requirements
+
+# ---------------------------------------------------------
+# 1. Frontend Requirements (Node.js)
+# ---------------------------------------------------------
+# Run `npm install` inside the `lexiguard-app` directory.
+# The primary dependencies are automatically managed via package.json:
+react>=18.2.0
+react-dom>=18.2.0
+react-markdown>=9.0.1
+pdfjs-dist>=3.11.174
+lucide-react>=0.344.0
+axios>=1.7.9
+
+# Build Tools
+vite>=5.1.4
+typescript>=5.2.2
+
+# ---------------------------------------------------------
+# 2. API Proxy Requirements
+# ---------------------------------------------------------
+# Vercel Serverless Functions require the vercel CLI for local testing
+vercel>=34.0.0
+
+# ---------------------------------------------------------
+# 3. Backend & AI Requirements (External Infrastructure)
+# ---------------------------------------------------------
+n8n>=1.0.0          # Self-hosted on AWS EC2 or n8n Cloud
+langchain           # (Operated inside n8n)
+Google Gemini API   # API Key required for gemini-2.5-flash models
+
+# ---------------------------------------------------------
+# 4. Deployment Infrastructure
+# ---------------------------------------------------------
+# - Vercel (For React Frontend and API Proxy)
+# - AWS EC2 (Ubuntu 24.04 recommended for n8n Docker host)
