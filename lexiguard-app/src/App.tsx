@@ -1,11 +1,10 @@
 import React, { useState, useRef } from "react";
 import { UploadCloud, FileText, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry?url';
 import './index.css';
 
-// Set up the pdf.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+// Set up the pdf.js worker using a stable CDN to prevent Vite bundler issues
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
