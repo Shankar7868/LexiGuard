@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { UploadCloud, FileText, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
 import * as pdfjsLib from 'pdfjs-dist';
+import ReactMarkdown from 'react-markdown';
 import './index.css';
 
 // Set up the pdf.js worker using a stable CDN to prevent Vite bundler issues
@@ -123,7 +124,7 @@ function App() {
       const text = await response.text();
       try {
         const json = JSON.parse(text);
-        setResult(json.output || json.message || JSON.stringify(json, null, 2));
+        setResult(json.text || json.output || json.message || JSON.stringify(json, null, 2));
       } catch {
         setResult(text);
       }
@@ -246,8 +247,8 @@ function App() {
             </div>
           </div>
           
-          <div className="result-box">
-            {result}
+          <div className="result-box markdown-body" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+            <ReactMarkdown>{result}</ReactMarkdown>
           </div>
           
           <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
