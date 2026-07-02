@@ -124,7 +124,13 @@ function App() {
       const text = await response.text();
       try {
         const json = JSON.parse(text);
-        setResult(json.text || json.output || json.message || JSON.stringify(json, null, 2));
+        let extractedText = null;
+        if (Array.isArray(json) && json.length > 0) {
+          extractedText = json[0].text || json[0].output || json[0].message;
+        } else if (typeof json === 'object' && json !== null) {
+          extractedText = json.text || json.output || json.message;
+        }
+        setResult(extractedText || JSON.stringify(json, null, 2));
       } catch {
         setResult(text);
       }
