@@ -1,9 +1,8 @@
-"use client";
-
 import React, { useState, useRef } from "react";
-import { UploadCloud, FileText, Send, Loader2, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
+import { UploadCloud, FileText, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
+import './index.css';
 
-export default function Home() {
+function App() {
   const [file, setFile] = useState<File | null>(null);
   const [concern, setConcern] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -69,6 +68,7 @@ export default function Home() {
       formData.append("pdf", file);
       formData.append("Concerns", concern);
 
+      // Secure API Route deployed via Vercel Serverless Function
       const response = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
@@ -78,13 +78,12 @@ export default function Home() {
         throw new Error("Failed to analyze the document. Please try again.");
       }
 
-      // n8n webhook might return JSON or plain text depending on configuration
       const text = await response.text();
       try {
         const json = JSON.parse(text);
         setResult(json.output || json.message || JSON.stringify(json, null, 2));
       } catch {
-        setResult(text); // If it's plain text, just set it
+        setResult(text);
       }
       
     } catch (err: any) {
@@ -111,7 +110,6 @@ export default function Home() {
         <p className="subtitle">AI-Powered Terms & Conditions Analysis</p>
       </header>
 
-      {/* Main App Interface */}
       {!isLoading && !result && (
         <form onSubmit={handleSubmit} className="card">
           <div className="form-group">
@@ -181,7 +179,6 @@ export default function Home() {
         </form>
       )}
 
-      {/* Loading State */}
       {isLoading && (
         <div className="card loading-container">
           <div className="pulse">
@@ -194,7 +191,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Results State */}
       {!isLoading && result && (
         <div className="card" style={{ animation: 'fadeIn 0.5s ease-out' }}>
           <div className="result-header">
@@ -222,3 +218,5 @@ export default function Home() {
     </main>
   );
 }
+
+export default App;
