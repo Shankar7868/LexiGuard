@@ -129,7 +129,6 @@ function App() {
           }
 
           const text = await response.text();
-          let parsedSuccessfully = false;
           try {
             const json = JSON.parse(text);
             let extractedText = null;
@@ -145,12 +144,10 @@ function App() {
             }
 
             setResult(extractedText || JSON.stringify(json, null, 2));
-            parsedSuccessfully = true;
           } catch (e: any) {
             if (e.message === "AI engine returned an empty response.") throw e;
             if (!text.trim()) throw new Error("AI engine returned an empty response.");
             setResult(text);
-            parsedSuccessfully = true;
           }
           
           success = true;
