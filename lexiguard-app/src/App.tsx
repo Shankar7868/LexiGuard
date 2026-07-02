@@ -1,12 +1,18 @@
 import React, { useState, useRef } from "react";
 import { UploadCloud, FileText, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry?url';
 import './index.css';
+
+// Set up the pdf.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [concern, setConcern] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [progressText, setProgressText] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +52,21 @@ function App() {
     }
   };
 
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = "";
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(" ");
+      fullText += pageText + "\n\n";
+    }
+
+    return fullText;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -64,14 +85,24 @@ function App() {
     setResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append("pdf", file);
-      formData.append("Concerns", concern);
+      // Step 1: Extract text locally in the browser
+      setProgressText("Extracting text from PDF (Local)...");
+      const pdfText = await extractTextFromPDF(file);
+      
+      // Step 2: Send lightweight JSON to the proxy
+      setProgressText("Sending to AI Analysis Engine...");
+      
+      const payload = {
+        documentText: pdfText,
+        Concerns: concern
+      };
 
-      // Secure API Route deployed via Vercel Serverless Function
       const response = await fetch("/api/analyze", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -90,6 +121,7 @@ function App() {
       setError(err.message || "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
+      setProgressText("");
     }
   };
 
@@ -186,7 +218,7 @@ function App() {
           </div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>LexiGuard is analyzing...</h2>
           <p style={{ color: 'var(--text-muted)', textAlign: 'center', maxWidth: '400px' }}>
-            Our AI is reading the document and cross-referencing your concern. This usually takes a few seconds.
+            {progressText}
           </p>
         </div>
       )}

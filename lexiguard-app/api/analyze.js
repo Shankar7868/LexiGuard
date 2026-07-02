@@ -7,23 +7,16 @@ export default async function handler(req, res) {
   try {
     const N8N_WEBHOOK_URL = 'http://13.53.216.50:5678/webhook/LexiGuard';
 
-    // We must pass the raw body to the n8n webhook since it contains multipart/form-data
-    // In Vercel, by default the body is parsed. We need to disable body parsing for this route.
-    
-    // Actually, Vercel standard Node.js serverless functions parse the body.
-    // The easiest way to proxy multipart/form-data without writing a custom busboy parser 
-    // is to just fetch using the exact same request stream. However, in Vercel API routes, 
-    // `req` is a Node.js IncomingMessage. 
-    // Let's use the fetch API with the raw headers and body.
+    // The React app now sends JSON ({ documentText, Concerns })
+    // Vercel automatically parses JSON bodies into req.body
+    const payload = req.body;
+
     const fetchResponse = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: {
-        'content-type': req.headers['content-type']
+        'Content-Type': 'application/json'
       },
-      // If deployed on Vercel, req is a readable stream and can be passed to fetch body
-      // Note: We need to export config to disable bodyParser so req remains a stream
-      body: req,
-      duplex: 'half'
+      body: JSON.stringify(payload)
     });
 
     if (!fetchResponse.ok) {
@@ -45,10 +38,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error while connecting to the analysis engine.' });
   }
 }
-
-// Disable body parsing so we can stream the multipart/form-data directly to n8n
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
